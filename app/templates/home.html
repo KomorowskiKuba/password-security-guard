@@ -11,17 +11,28 @@ Login
 {% endblock %}
 
 {% block content %}
+<script>
+    function myFunction() {
+        var x = document.getElementById("myInput");
+        if (x.type === "password") {
+            x.type = "text";
+        } else {
+            x.type = "password";
+        }
+    }
+</script>
     <button><a href="{{ url_for('logout') }}">Login</a></button>
     <div class="container">
         <h1> Hello world! </h1>
         <p>Password list:</p>
         <ul>
             {% for password in passwords %}
-                <li>{{ password.address }}, {{ password.password }}</li>
+            <li>{{ password.address }}, {{ password.password }}</li>
             {% endfor %}
         </ul>
 
         <form class="form-addpassword" method="POST" action="/home">
+            {{ form.csrf_token }}
             {{ form.hidden_tag() }}
             {{ wtf.form_field(form.address) }}
             {{ wtf.form_field(form.password) }}

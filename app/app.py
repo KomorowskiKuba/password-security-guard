@@ -9,6 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user
 from forms import LoginForm, RegisterForm, PasswordForm
 from utils.password_validator import PasswordValidator
+from flask_wtf.csrf import CSRFProtect
 
 app = Flask(__name__)
 
@@ -19,6 +20,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 Bootstrap(app)
 
 db = SQLAlchemy(app)
+csrf = CSRFProtect(app)
 
 
 @app.before_first_request
@@ -89,9 +91,9 @@ def register():
     form = RegisterForm()
 
     if form.validate_on_submit():
-        hashed_password = generate_password_hash(form.password.data, method='sha256', salt_length=32)
+        hashed_password = generate_password_hash(form.password.data, method='pbkdf2:sha256:100000', salt_length=32)
 
-        validation_outcome = []  # PasswordValidator.validate(form.username.data) TODO: UNCOMMENT
+        validation_outcome = PasswordValidator.validate(form.password.data)
 
         if len(validation_outcome) == 0:
             new_user = User(
