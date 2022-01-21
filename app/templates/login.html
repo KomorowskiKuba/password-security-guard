@@ -8,13 +8,22 @@ Login
 {% block styles %}
 {{super()}}
 <link rel="stylesheet" href="{{url_for('.static', filename='signin.css')}}">
+<link rel="stylesheet" href="{{url_for('.static', filename='general.css')}}">
 {% endblock %}
 
 {% block content %}
+    <div class="topnav">
+      <a class="active" style="font-weight: bolder; background-color: #0099e6; margin-right: 10px; border: 2px #000000;color: white"> Password security guard </a>
+
+      <a class="active" href="{{ '/login' }}"> Login </a>
+      <a href="{{ '/register' }}"> Register </a>
+    </div>
+
     <div class="container">
 
       <form class="form-signin" method="POST" action="/login">
-        <h2 class="form-signin-heading">Please sign in</h2>
+        <h1 class="form-signin-heading"> Welcome </h1>
+          <h3> Please login </h3>
           {{ form.csrf_token }}
           {{ form.hidden_tag() }}
           {{ wtf.form_field(form.username) }}
@@ -24,7 +33,7 @@ Login
           {% if error %}
             <p class="error"><strong>Error:</strong> {{ error }}
           {% endif %}
-        <button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
+        <button class="btn btn-lg btn-primary btn-block" style="background-color: #0099e6; color: white;" type="submit">Sign in</button>
       </form>
 
     </div>

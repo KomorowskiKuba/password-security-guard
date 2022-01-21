@@ -60,7 +60,7 @@ def load_user(user_id):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return redirect(url_for('login'))
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -91,23 +91,27 @@ def register():
     form = RegisterForm()
 
     if form.validate_on_submit():
-        hashed_password = generate_password_hash(form.password.data, method='pbkdf2:sha256:100000', salt_length=32)
+        if User.query.filter_by(email=form.email.data).first():
+            error = 'User with this email already exists!'
 
-        validation_outcome = PasswordValidator.validate(form.password.data)
+        else:
+            hashed_password = generate_password_hash(form.password.data, method='pbkdf2:sha256:100000', salt_length=32)
 
-        if len(validation_outcome) == 0:
-            new_user = User(
-                username=bleach.clean(form.username.data),
-                email=bleach.clean(form.email.data),
-                master_password=hashed_password
-            )
+            validation_outcome = PasswordValidator.validate(form.password.data)
 
-            db.session.add(new_user)
-            db.session.commit()
+            if len(validation_outcome) == 0:
+                new_user = User(
+                    username=bleach.clean(form.username.data),
+                    email=bleach.clean(form.email.data),
+                    master_password=hashed_password
+                )
 
-            return redirect(url_for('login'))
+                db.session.add(new_user)
+                db.session.commit()
 
-        error = '\n'.join(validation_outcome)
+                return redirect(url_for('login'))
+
+            error = '\n'.join(validation_outcome)
 
     return render_template('register.html', form=form, error=error)
 
@@ -139,7 +143,14 @@ def home():
 def logout():
     logout_user()
 
-    return redirect(url_for('index'))
+    return redirect(url_for('login'))
+
+
+#{{ url_for('password_details', id=password.id) }}
+@app.route('/home/<id>')
+@login_required
+def password_details(id):
+    return '<p> id </p>'
 
 
 if __name__ == '__main__':
