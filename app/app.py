@@ -14,7 +14,7 @@ from flask_wtf.csrf import CSRFProtect
 app = Flask(__name__)
 
 app.config['SECRET_KEY'] = 'notverysecretkey'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////guard/app/data/database.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////app/data/database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 Bootstrap(app)
@@ -32,7 +32,7 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-conn = sqlite3.connect('app/data/database.db')
+conn = sqlite3.connect('/app/data/database.db')
 
 
 class User(UserMixin, db.Model):
