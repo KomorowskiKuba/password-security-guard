@@ -1,15 +1,18 @@
 import sqlite3
 import time
 import bleach
+import logging
 import flask_login
 from flask import Flask, render_template, redirect, url_for
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user
-from forms import LoginForm, RegisterForm, PasswordForm
+from forms import LoginForm, RegisterForm, PasswordForm, PasswordResetForm, PasswordAdditionalAuthForm
 from utils.password_validator import PasswordValidator
 from flask_wtf.csrf import CSRFProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
 
@@ -21,6 +24,8 @@ Bootstrap(app)
 
 db = SQLAlchemy(app)
 csrf = CSRFProtect(app)
+
+limiter = Limiter(app, key_func=get_remote_address)
 
 
 @app.before_first_request
@@ -75,7 +80,7 @@ def login():
             username=bleach.clean(form.username.data)).first()
 
         if user:
-            if check_password_hash(user.master_password, form.password.data):
+            if check_password_hash(user.master_password, bleach.clean(form.password.data)):
                 login_user(user, remember=form.remember.data)
 
                 return redirect(url_for('home'))
@@ -95,23 +100,27 @@ def register():
             error = 'User with this email already exists!'
 
         else:
-            hashed_password = generate_password_hash(form.password.data, method='pbkdf2:sha256:100000', salt_length=32)
+            if form.password.data == form.password_confirmation.data:
+                hashed_password = generate_password_hash(form.password.data, method='pbkdf2:sha256:100000', salt_length=32)
 
-            validation_outcome = PasswordValidator.validate(form.password.data)
+                validation_outcome = PasswordValidator.validate(form.password.data)
 
-            if len(validation_outcome) == 0:
-                new_user = User(
-                    username=bleach.clean(form.username.data),
-                    email=bleach.clean(form.email.data),
-                    master_password=hashed_password
-                )
+                if len(validation_outcome) == 0:
+                    new_user = User(
+                        username=bleach.clean(form.username.data),
+                        email=bleach.clean(form.email.data),
+                        master_password=hashed_password
+                    )
 
-                db.session.add(new_user)
-                db.session.commit()
+                    db.session.add(new_user)
+                    db.session.commit()
 
-                return redirect(url_for('login'))
+                    return redirect(url_for('login'))
 
-            error = '\n'.join(validation_outcome)
+                error = '\n'.join(validation_outcome)
+
+            else:
+                error = 'Passwords are not the same!'
 
     return render_template('register.html', form=form, error=error)
 
@@ -146,12 +155,43 @@ def logout():
     return redirect(url_for('login'))
 
 
-#{{ url_for('password_details', id=password.id) }}
-@app.route('/home/<id>')
+@app.route('/password-reset', methods=['GET', 'POST'])
+def password_reset():
+    form = PasswordResetForm()
+
+    if form.validate_on_submit():
+        app.logger.info('Normally we would send email to address: {}'.format(form.email.data))
+        return redirect(url_for('login'))
+
+    return render_template('password-reset.html', form=form)
+
+
+@app.route('/home/<id>', methods=['GET', 'POST'])
 @login_required
 def password_details(id):
-    return '<p> id </p>'
+    error = None
+
+    form = PasswordAdditionalAuthForm()
+
+    if form.validate_on_submit():
+        app.logger.info('Current user id: {}'.format(flask_login.current_user.id))
+        current_user_id = flask_login.current_user.id
+        current_user = User.query.filter_by(id=current_user_id).first()
+
+        if current_user:
+            if check_password_hash(current_user.master_password, bleach.clean(form.password.data)):
+                current_password = PagePassword.query.filter_by(user_id=current_user_id, id=id).first()
+
+                return render_template('password-details.html', password=current_password.password)
+        else:
+            error = 'Invalid password!'
+
+    return render_template('password-additional-auth.html', form=form, id=id, error=error)
 
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
+else:
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel(gunicorn_logger.level)

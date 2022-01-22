@@ -2,7 +2,7 @@
 {% import "bootstrap/wtf.html" as wtf %}
 
 {% block title %}
-Login
+Home
 {% endblock %}
 
 {% block styles %}
@@ -25,10 +25,9 @@ Login
             {% for password in passwords %}
                 <li style="font-size: 18px; ">
                     {{ password.address }}
-                    {{ password.password }}
-                    <button class="button-10" role="button">Show</button>
-                    <button class="button-10" role="button">Edit</button>
-                    <button class="button-10" role="button">Delete</button>
+                    <form style="display:inline-block;" method="GET" action="{{ url_for('password_details', id=password.id) }}">
+                        <input class="button-10" type="submit" value="Show">
+                    </form>
                 </li>
             {% endfor %}
         </ul>
