@@ -130,3 +130,5 @@ dmypy.json
 
 *~
 /app/data
+
+/app/certificates
