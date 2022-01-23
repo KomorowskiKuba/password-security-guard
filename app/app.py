@@ -156,14 +156,20 @@ def logout():
 
 @app.route('/password-reset', methods=['GET', 'POST'])
 def password_reset():
+    error = None
+
     form = PasswordResetForm()
 
     if form.validate_on_submit():
-        app.logger.info('Normally we would send email to address: {}'.format(form.email.data))
+        user = User.query.filter_by(email=form.email.data).first()
+        if user:
+            app.logger.info('Normally we would send email to address: {}'.format(form.email.data))
 
-        return redirect(url_for('login'))
+            return redirect(url_for('login'))
+        else:
+            error = 'User with provided email does not exist!'
 
-    return render_template('password-reset.html', form=form)
+    return render_template('password-reset.html', form=form, error=error)
 
 
 @app.route('/home/<id>', methods=['GET', 'POST'])
