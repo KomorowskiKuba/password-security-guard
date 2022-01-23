@@ -21,6 +21,11 @@ class PasswordForm(FlaskForm):
     password = PasswordField('Password', validators=[InputRequired(), Length(min=8, max=60)])
 
 
+class PasswordEditForm(FlaskForm):
+    address = StringField('Address', validators=[InputRequired(), Length(max=100)])
+    password = StringField('Password', validators=[InputRequired(), Length(min=8, max=60)])
+
+
 class PasswordResetForm(FlaskForm):
     email = EmailField('E-mail', validators=[InputRequired(), Email(message='Invalid e-mail!'), Length(min=5, max=30)])
 

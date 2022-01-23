@@ -1,14 +1,20 @@
 import sqlite3
 import time
+import json
 import bleach
 import logging
+
+import flask
 import flask_login
+from base64 import b64decode
 from flask import Flask, render_template, redirect, url_for
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user
-from forms import LoginForm, RegisterForm, PasswordForm, PasswordResetForm, PasswordAdditionalAuthForm
+
+from utils.password_encrypter import PasswordEncrypter
+from forms import LoginForm, RegisterForm, PasswordForm, PasswordResetForm, PasswordAdditionalAuthForm, PasswordEditForm
 from utils.password_validator import PasswordValidator
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
@@ -27,10 +33,25 @@ csrf = CSRFProtect(app)
 
 limiter = Limiter(app, key_func=get_remote_address)
 
+#PASSWORD_KEY = None
+#PASSWORD_IV = None
+
 
 @app.before_first_request
 def create_tables():
     db.create_all()
+
+
+@app.before_first_request
+def read_secrets():
+    f = open('secrets.json')
+    json_data = json.load(f)
+
+    global PASSWORD_KEY
+    global PASSWORD_IV
+
+    PASSWORD_KEY = b64decode(json_data['password_key'])
+    PASSWORD_IV = b64decode(json_data['password_iv'])
 
 
 login_manager = LoginManager()
@@ -101,7 +122,8 @@ def register():
 
         else:
             if form.password.data == form.password_confirmation.data:
-                hashed_password = generate_password_hash(form.password.data, method='pbkdf2:sha256:100000', salt_length=32)
+                hashed_password = generate_password_hash(form.password.data, method='pbkdf2:sha256:100000',
+                                                         salt_length=32)
 
                 validation_outcome = PasswordValidator.validate(form.password.data)
 
@@ -135,7 +157,11 @@ def home():
     if form.validate_on_submit():
         new_page_password = PagePassword(
             address=bleach.clean(form.address.data),
-            password=bleach.clean(form.password.data),
+            password=PasswordEncrypter.encrypt(
+                bleach.clean(form.password.data).encode(),
+                PASSWORD_KEY,
+                PASSWORD_IV
+            ),
             user_id=flask_login.current_user.id
         )
 
@@ -172,9 +198,9 @@ def password_details(id):
     error = None
 
     form = PasswordAdditionalAuthForm()
+    password_form = PasswordEditForm()
 
     if form.validate_on_submit():
-        app.logger.info('Current user id: {}'.format(flask_login.current_user.id))
         current_user_id = flask_login.current_user.id
         current_user = User.query.filter_by(id=current_user_id).first()
 
@@ -182,9 +208,44 @@ def password_details(id):
             if check_password_hash(current_user.master_password, bleach.clean(form.password.data)):
                 current_password = PagePassword.query.filter_by(user_id=current_user_id, id=id).first()
 
-                return render_template('password-details.html', password=current_password.password)
+                if current_password is None:
+                    return redirect(url_for('home'))
+
+                decoded_current_password = PasswordEncrypter.decrypt(
+                    current_password.password,
+                    PASSWORD_KEY,
+                    PASSWORD_IV
+                ).decode()
+
+                password_form.address.data = current_password.address
+                password_form.password.data = decoded_current_password
+
+                return render_template('password-details.html', id=id, form=password_form)
         else:
             error = 'Invalid password!'
+
+    if password_form.validate_on_submit():
+        current_user_id = flask_login.current_user.id
+        current_user = User.query.filter_by(id=current_user_id).first()
+
+        if current_user:
+            if flask.request.form['btn_identifier'] == 'edit_button':
+                current_password = PagePassword.query.filter_by(user_id=current_user_id, id=id).first()
+                current_password.address = bleach.clean(password_form.address.data)
+                current_password.password = PasswordEncrypter.encrypt(
+                    bleach.clean(password_form.password.data).encode(),
+                    PASSWORD_KEY,
+                    PASSWORD_IV
+                )
+
+                db.session.commit()
+
+            if flask.request.form['btn_identifier'] == 'delete_button':
+                current_password = PagePassword.query.filter_by(user_id=current_user_id, id=id).first()
+                db.session.delete(current_password)
+                db.session.commit()
+
+        return redirect(url_for('home'))
 
     return render_template('password-additional-auth.html', form=form, id=id, error=error)
 
