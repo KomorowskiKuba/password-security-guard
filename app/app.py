@@ -6,6 +6,10 @@ import logging
 
 import flask
 import flask_login
+
+from models import User, PagePassword
+from extensions import db
+
 from base64 import b64decode
 from flask import Flask, render_template, redirect, url_for
 from flask_bootstrap import Bootstrap
@@ -28,7 +32,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 Bootstrap(app)
 
-db = SQLAlchemy(app)
+db.init_app(app)
 csrf = CSRFProtect(app)
 
 limiter = Limiter(app, key_func=get_remote_address)
@@ -56,24 +60,6 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 conn = sqlite3.connect('/app/data/database.db')
-
-
-class User(UserMixin, db.Model):
-    __tablename__ = 'user'
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(15), unique=True)
-    email = db.Column(db.String(30), unique=True)
-    master_password = db.Column(db.String(60))
-    page_password = db.relationship('PagePassword')
-
-
-class PagePassword(db.Model):
-    __tablename__ = 'pagepassword'
-    id = db.Column(db.Integer, primary_key=True)
-    address = db.Column(db.String(100))
-    password = db.Column(db.String(60))
-
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
 
 @login_manager.user_loader
