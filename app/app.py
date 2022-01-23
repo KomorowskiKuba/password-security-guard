@@ -90,7 +90,7 @@ def register():
     form = RegisterForm()
 
     if form.validate_on_submit():
-        if User.query.filter_by(email=form.email.data).first():
+        if User.query.filter_by(email=bleach.clean(form.email.data)).first():
             error = 'User with this email already exists!'
 
         else:
@@ -161,7 +161,7 @@ def password_reset():
     form = PasswordResetForm()
 
     if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data).first()
+        user = User.query.filter_by(email=bleach.clean(form.email.data)).first()
         if user:
             app.logger.info('Normally we would send email to address: {}'.format(form.email.data))
 
