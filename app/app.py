@@ -1,39 +1,38 @@
-import sqlite3
 import time
 import json
-import bleach
-import logging
-
 import flask
+import bleach
+import sqlite3
+import logging
 import flask_login
 
-from models import User, PagePassword
 from extensions import db
+from models import User, PagePassword
+from utils.password_encrypter import PasswordEncrypter
+from utils.password_validator import PasswordValidator
+from forms import LoginForm, RegisterForm, PasswordForm, PasswordResetForm, PasswordAdditionalAuthForm, PasswordEditForm
 
 from base64 import b64decode
-from flask import Flask, render_template, redirect, url_for
 from flask_bootstrap import Bootstrap
-from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user
-
-from utils.password_encrypter import PasswordEncrypter
-from forms import LoginForm, RegisterForm, PasswordForm, PasswordResetForm, PasswordAdditionalAuthForm, PasswordEditForm
-from utils.password_validator import PasswordValidator
 from flask_wtf.csrf import CSRFProtect
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+from flask import Flask, render_template, redirect, url_for
+from flask_login import LoginManager, login_user, login_required, logout_user
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-
 app.config.from_pyfile('settings.py')
 
 Bootstrap(app)
 
 db.init_app(app)
+
 csrf = CSRFProtect(app)
 
-limiter = Limiter(app, key_func=get_remote_address)
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+conn = sqlite3.connect('/app/data/database.db')
 
 
 @app.before_first_request
@@ -53,13 +52,6 @@ def read_secrets():
     PASSWORD_IV = b64decode(json_data['password_iv'])
 
 
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
-
-conn = sqlite3.connect('/app/data/database.db')
-
-
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -76,7 +68,7 @@ def login():
     form = LoginForm()
 
     if form.validate_on_submit():
-        time.sleep(1)  # TODO: CHANGE TO 5
+        time.sleep(3)
 
         user = User.query.filter_by(
             username=bleach.clean(form.username.data)).first()
@@ -168,6 +160,7 @@ def password_reset():
 
     if form.validate_on_submit():
         app.logger.info('Normally we would send email to address: {}'.format(form.email.data))
+
         return redirect(url_for('login'))
 
     return render_template('password-reset.html', form=form)
@@ -212,6 +205,7 @@ def password_details(id):
         if current_user:
             if flask.request.form['btn_identifier'] == 'edit_button':
                 current_password = PagePassword.query.filter_by(user_id=current_user_id, id=id).first()
+
                 current_password.address = bleach.clean(password_form.address.data)
                 current_password.password = PasswordEncrypter.encrypt(
                     bleach.clean(password_form.password.data).encode(),
@@ -223,6 +217,7 @@ def password_details(id):
 
             if flask.request.form['btn_identifier'] == 'delete_button':
                 current_password = PagePassword.query.filter_by(user_id=current_user_id, id=id).first()
+
                 db.session.delete(current_password)
                 db.session.commit()
 
@@ -232,7 +227,7 @@ def password_details(id):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    app.run(host='0.0.0.0')
 else:
     gunicorn_logger = logging.getLogger('gunicorn.error')
     app.logger.handlers = gunicorn_logger.handlers

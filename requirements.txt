@@ -11,5 +11,3 @@ bleach~=4.1.0
 gunicorn~=20.1.0
 pybase64~=1.2.1
 pycryptodome~=3.12.0
-
-Flask-Limiter~=2.1
