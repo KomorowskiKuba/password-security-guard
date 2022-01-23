@@ -26,9 +26,7 @@ from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
 
-app.config['SECRET_KEY'] = 'notverysecretkey'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////app/data/database.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config.from_pyfile('settings.py')
 
 Bootstrap(app)
 

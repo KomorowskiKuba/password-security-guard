@@ -9,4 +9,4 @@ COPY . .
 
 WORKDIR /app
 
-CMD ["gunicorn", "--certfile", "certificates/cert.pem", "--keyfile", "certificates/key.pem", "-w", "4", "--bind", "0.0.0.0:5000", "app:app"]
+CMD ["gunicorn", "--certfile", "certificates/cert.pem", "--keyfile", "certificates/key.pem", "-w", "1", "-t", "4", "--bind", "0.0.0.0:5000", "app:app"]
