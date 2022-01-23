@@ -33,9 +33,6 @@ csrf = CSRFProtect(app)
 
 limiter = Limiter(app, key_func=get_remote_address)
 
-#PASSWORD_KEY = None
-#PASSWORD_IV = None
-
 
 @app.before_first_request
 def create_tables():
